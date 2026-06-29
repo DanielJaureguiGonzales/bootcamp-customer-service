@@ -99,6 +99,11 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Mono<CustomerResponse> findByDocumentNumberAndDocumentType(String documentNumber, String documentType) {
         return customerRepository.findByDocumentNumberAndDocumentTypeAndStatus(documentNumber, documentType, true)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException(
+                        "Customer",
+                        "documentNumber",
+                        documentNumber
+                )))
                 .map(customerMapper::toCustomerResponse);
     }
 
