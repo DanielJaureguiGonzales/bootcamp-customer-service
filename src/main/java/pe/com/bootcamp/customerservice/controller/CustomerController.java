@@ -11,10 +11,9 @@ import pe.com.bootcamp.customerservice.service.CustomerService;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 
 @RestController
-@RequestMapping("api/customer")
+@RequestMapping("api/customers")
 @RequiredArgsConstructor
 public class CustomerController {
 
