@@ -1,0 +1,519 @@
+openapi: 3.0.3
+info:
+  title: Customer Service API
+  description: |
+    API para administrar clientes del banco y exponer endpoints internos para validación de clientes desde otros microservicios.
+
+    Tipos de documento:
+    - `01`: Cliente personal
+    - `02`: Cliente empresarial
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local
+  - url: http://customer-service:8080
+    description: Docker / service discovery
+
+tags:
+  - name: Customers
+    description: Operaciones públicas de clientes
+  - name: Internal Customers
+    description: Endpoints internos para otros microservicios
+
+paths:
+  /api/customers:
+    get:
+      tags:
+        - Customers
+      summary: Listar clientes activos
+      description: Retorna todos los clientes activos registrados en el sistema.
+      operationId: findAllCustomers
+      responses:
+        '200':
+          description: Clientes encontrados correctamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerResponse'
+              example:
+                - id: 6a3707c0e147c3a0a4818fbe
+                  documentType: '02'
+                  documentNumber: '10461339561'
+                  firstName: null
+                  lastName: null
+                  companyName: Empresa ABC SAC
+                  email: empresa.abc@mail.com
+                  phone: '999888777'
+                  address: Av. Principal 123
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Customers
+      summary: Crear cliente
+      description: Crea un cliente personal o empresarial según el tipo de documento.
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+            examples:
+              personalCustomer:
+                summary: Cliente personal
+                value:
+                  documentType: '01'
+                  documentNumber: '45678921'
+                  firstName: Daniel
+                  lastName: Jauregui
+                  companyName: null
+                  email: daniel@mail.com
+                  phone: '999888777'
+                  address: Av. Los Olivos 123
+              businessCustomer:
+                summary: Cliente empresarial
+                value:
+                  documentType: '02'
+                  documentNumber: '10461339561'
+                  firstName: null
+                  lastName: null
+                  companyName: Empresa ABC SAC
+                  email: empresa.abc@mail.com
+                  phone: '999888777'
+                  address: Av. Principal 123
+      responses:
+        '200':
+          description: Cliente creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Solicitud inválida o cliente ya existente
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                validationError:
+                  summary: Error de validación
+                  value:
+                    type: https://api.customer-service.com/errors/validation-error
+                    title: Invalid request
+                    status: 400
+                    detail: Validation failed for one or more fields
+                    instance: /api/customers
+                    errorCode: VALIDATION_ERROR
+                    timestamp: '2026-06-29T15:30:00'
+                    errors:
+                      email: Email must be valid
+                alreadyExists:
+                  summary: Cliente ya existe
+                  value:
+                    type: https://api.customer-service.com/errors/resource-already-exists
+                    title: Customer already exists
+                    status: 400
+                    detail: "Customer already exists with documentNumber: 45678921"
+                    instance: /api/customers
+                    errorCode: RESOURCE_ALREADY_EXISTS
+                    timestamp: '2026-06-29T15:30:00'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/customers/{id}:
+    get:
+      tags:
+        - Customers
+      summary: Buscar cliente por ID
+      description: Busca un cliente activo usando su identificador interno.
+      operationId: findCustomerById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador interno del cliente
+          schema:
+            type: string
+          example: 6a3707c0e147c3a0a4818fbe
+      responses:
+        '200':
+          description: Cliente encontrado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Customers
+      summary: Actualizar cliente
+      description: Actualiza la información de un cliente activo.
+      operationId: updateCustomer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador interno del cliente
+          schema:
+            type: string
+          example: 6a3707c0e147c3a0a4818fbe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+      responses:
+        '200':
+          description: Cliente actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - Customers
+      summary: Eliminar cliente lógicamente
+      description: Desactiva un cliente activo cambiando su estado interno a inactivo.
+      operationId: deleteCustomer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identificador interno del cliente
+          schema:
+            type: string
+          example: 6a3707c0e147c3a0a4818fbe
+      responses:
+        '204':
+          description: Cliente desactivado correctamente
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/customers/documentNumber/{documentNumber}:
+    get:
+      tags:
+        - Customers
+      summary: Buscar cliente por número de documento
+      description: Busca un cliente activo usando su número de documento.
+      operationId: findCustomerByDocumentNumber
+      parameters:
+        - name: documentNumber
+          in: path
+          required: true
+          description: Número de documento del cliente
+          schema:
+            type: string
+          example: '10461339561'
+      responses:
+        '200':
+          description: Cliente encontrado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/internal/customers/document-number:
+    get:
+      tags:
+        - Internal Customers
+      summary: Buscar cliente interno por documento y tipo
+      description: Endpoint interno usado por otros microservicios para validar que un cliente exista y esté activo.
+      operationId: findInternalCustomerByDocument
+      parameters:
+        - name: documentType
+          in: query
+          required: true
+          description: Tipo de documento. `01` personal, `02` empresarial.
+          schema:
+            type: string
+            enum: ['01', '02']
+          example: '02'
+        - name: documentNumber
+          in: query
+          required: true
+          description: Número de documento del cliente
+          schema:
+            type: string
+          example: '10461339561'
+      responses:
+        '200':
+          description: Cliente encontrado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/internal/customers/document-numbers/search:
+    post:
+      tags:
+        - Internal Customers
+      summary: Buscar clientes por lista de documentos
+      description: Endpoint interno para validar múltiples clientes activos por número de documento.
+      operationId: searchInternalCustomersByDocumentNumbers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentNumbersRequest'
+            example:
+              documentNumbers:
+                - '45678921'
+                - '10461339561'
+      responses:
+        '200':
+          description: Clientes encontrados correctamente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerSummaryResponse'
+              example:
+                - id: 6a3707c0e147c3a0a4818fbe
+                  documentNumber: '10461339561'
+                  status: true
+        '400':
+          description: Solicitud inválida o participantes inexistentes/inactivos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+              examples:
+                validationError:
+                  summary: Error de validación
+                  value:
+                    type: https://api.customer-service.com/errors/validation-error
+                    title: Invalid request
+                    status: 400
+                    detail: Validation failed for one or more fields
+                    instance: /api/internal/customers/document-numbers/search
+                    errorCode: VALIDATION_ERROR
+                    timestamp: '2026-06-29T15:30:00'
+                customersParticipantsError:
+                  summary: Clientes inexistentes o inactivos
+                  value:
+                    type: https://api.customer-service.com/errors/resource-not-found
+                    title: Customers participants not exists or inactive
+                    status: 400
+                    detail: Some customers do not exist or are inactive
+                    instance: /api/internal/customers/document-numbers/search
+                    errorCode: CUSTOMERS_PARTICIPANTS_NOT_EXISTS
+                    timestamp: '2026-06-29T15:30:00'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    CustomerRequest:
+      type: object
+      required:
+        - documentType
+        - documentNumber
+        - email
+        - phone
+        - address
+      properties:
+        documentType:
+          type: string
+          description: Tipo de documento. `01` personal, `02` empresarial.
+          enum: ['01', '02']
+          example: '01'
+        documentNumber:
+          type: string
+          description: Número de documento del cliente.
+          example: '45678921'
+        firstName:
+          type: string
+          nullable: true
+          description: Nombres del cliente personal.
+          example: Daniel
+        lastName:
+          type: string
+          nullable: true
+          description: Apellidos del cliente personal.
+          example: Jauregui
+        companyName:
+          type: string
+          nullable: true
+          description: Razón social del cliente empresarial.
+          example: Empresa ABC SAC
+        email:
+          type: string
+          format: email
+          example: daniel@mail.com
+        phone:
+          type: string
+          example: '999888777'
+        address:
+          type: string
+          example: Av. Los Olivos 123
+
+    CustomerResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 6a3707c0e147c3a0a4818fbe
+        documentType:
+          type: string
+          enum: ['01', '02']
+          example: '01'
+        documentNumber:
+          type: string
+          example: '45678921'
+        firstName:
+          type: string
+          nullable: true
+          example: Daniel
+        lastName:
+          type: string
+          nullable: true
+          example: Jauregui
+        companyName:
+          type: string
+          nullable: true
+          example: null
+        email:
+          type: string
+          format: email
+          example: daniel@mail.com
+        phone:
+          type: string
+          example: '999888777'
+        address:
+          type: string
+          example: Av. Los Olivos 123
+
+    CustomerSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 6a3707c0e147c3a0a4818fbe
+        documentNumber:
+          type: string
+          example: '10461339561'
+        status:
+          type: boolean
+          example: true
+
+    DocumentNumbersRequest:
+      type: object
+      required:
+        - documentNumbers
+      properties:
+        documentNumbers:
+          type: array
+          description: Lista de números de documento a validar.
+          minItems: 1
+          items:
+            type: string
+          example:
+            - '45678921'
+            - '10461339561'
+
+    ProblemDetail:
+      type: object
+      description: Respuesta de error basada en RFC 7807 Problem Detail.
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://api.customer-service.com/errors/resource-not-found
+        title:
+          type: string
+          example: Resource not found
+        status:
+          type: integer
+          format: int32
+          example: 404
+        detail:
+          type: string
+          example: "Customer not found with documentNumber: '45678921'"
+        instance:
+          type: string
+          example: /api/customers/documentNumber/45678921
+        errorCode:
+          type: string
+          example: RESOURCE_NOT_FOUND
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-06-29T15:30:00'
+        errors:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: string
+          example:
+            email: Email must be valid
+
+  responses:
+    ValidationError:
+      description: Error de validación
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: https://api.customer-service.com/errors/validation-error
+            title: Invalid request
+            status: 400
+            detail: Validation failed for one or more fields
+            instance: /api/customers
+            errorCode: VALIDATION_ERROR
+            timestamp: '2026-06-29T15:30:00'
+            errors:
+              documentType: Document type must be 01 for PERSONAL or 02 for BUSINESS
+    ResourceNotFound:
+      description: Recurso no encontrado
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: https://api.customer-service.com/errors/resource-not-found
+            title: Resource not found
+            status: 404
+            detail: "Customer not found with documentNumber: '45678921'"
+            instance: /api/customers/documentNumber/45678921
+            errorCode: RESOURCE_NOT_FOUND
+            timestamp: '2026-06-29T15:30:00'
+    InternalServerError:
+      description: Error interno del servidor
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: https://api.customer-service.com/errors/internal_server_error
+            title: Internal server error
+            status: 500
+            detail: Unexpected error
+            instance: /api/customers
+            errorCode: INTERNAL_SERVER_ERROR
+            timestamp: '2026-06-29T15:30:00'

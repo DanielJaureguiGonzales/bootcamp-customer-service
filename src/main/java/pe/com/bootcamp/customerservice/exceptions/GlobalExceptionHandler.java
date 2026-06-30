@@ -5,7 +5,6 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.support.WebExchangeBindException;
-import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
 
 import java.net.URI;
@@ -73,6 +72,23 @@ public class GlobalExceptionHandler {
         problemDetail.setInstance(URI.create(exchange.getRequest().getURI().getPath()));
 
         problemDetail.setProperty("errorCode", "RESOURCE_NOT_FOUND");
+        problemDetail.setProperty("timestamp", LocalDateTime.now());
+
+
+        return problemDetail;
+
+    }
+
+    @ExceptionHandler(CustomersParticipantsException.class)
+    public ProblemDetail handleCustomersParticipantsException(CustomersParticipantsException ex, ServerWebExchange exchange){
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+
+        problemDetail.setTitle("Customers participants not exists or inactive");
+        problemDetail.setType(URI.create("https://api.customer-service.com/errors/resource-not-found"));
+        problemDetail.setInstance(URI.create(exchange.getRequest().getURI().getPath()));
+
+        problemDetail.setProperty("errorCode", "CUSTOMERS_PARTICIPANTS_NOT_EXISTS");
         problemDetail.setProperty("timestamp", LocalDateTime.now());
 
 

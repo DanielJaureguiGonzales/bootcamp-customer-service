@@ -29,6 +29,6 @@ public class InternalController {
             @RequestParam String documentType,
             @RequestParam String documentNumber
     ){
-        return customerService.findByDocumentNumberAndDocumentType(documentType, documentNumber);
+        return customerService.findByDocumentNumberAndDocumentType( documentNumber, documentType);
     }
 }
